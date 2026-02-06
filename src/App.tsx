@@ -1,18 +1,16 @@
 /**
- * 메인 App 컴포넌트 - 간소화 버전
+ * 메인 App 컴포넌트 - 픽셀 아트 버전
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { loadAllData, getTodayKST, getLastKnownFng, type DataStore } from './lib/data';
 import { useUpbitWebSocket } from './lib/upbitWs';
 import { runSimulation, type SimParams, type SimResult } from './lib/sim';
-import ThemeToggle from './components/ThemeToggle';
 import StatsCards from './components/StatsCards';
 import Chart from './components/Chart';
 import Controls, { type ControlsState } from './components/Controls';
 import SimResultComp from './components/SimResult';
 import AdUnit from './components/AdUnit';
-import './App.css';
 
 function App() {
   const [dataStore, setDataStore] = useState<DataStore | null>(null);
@@ -20,12 +18,16 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // 날짜 선택 상태: 'start' | 'end' | null (null은 선택 모드 아님)
+  const [selectionMode, setSelectionMode] = useState<'start' | 'end' | null>(null);
   const [selectedStartDate, setSelectedStartDate] = useState<string | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
+
   const [controlsState, setControlsState] = useState<ControlsState | null>(null);
   const [simResult, setSimResult] = useState<SimResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // ... (데이터 로드 로직 동일)
   useEffect(() => {
     loadAllData()
       .then((data) => {
@@ -34,18 +36,17 @@ function App() {
       })
       .catch((err) => {
         console.error('Failed to load data:', err);
-        setError('데이터 로드 실패');
+        setError('DATA LOAD FAIL');
         setLoading(false);
       });
   }, []);
 
+  // ... (웹소켓 로직 동일)
   const handlePriceUpdate = useCallback((price: number) => {
     if (!dataStore) return;
-
     const today = getTodayKST();
     const { btcArray, btcMap } = dataStore;
     const todayIndex = btcArray.findIndex(b => b.d === today);
-
     if (todayIndex >= 0) {
       btcArray[todayIndex].c = price;
       btcMap.set(today, price);
@@ -53,26 +54,31 @@ function App() {
       btcArray.push({ d: today, c: price });
       btcMap.set(today, price);
     }
-
     setDataStore({ ...dataStore });
   }, [dataStore]);
 
   const wsState = useUpbitWebSocket(handlePriceUpdate);
 
+  // 반응형
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // 시뮬레이션 실행 (자동)
   useEffect(() => {
-    if (!dataStore || !selectedStartDate || !selectedEndDate || !controlsState) {
+    // 시작일이 없으면 계산 안함
+    if (!dataStore || !selectedStartDate || !controlsState) {
       setSimResult(null);
       return;
     }
 
-    if (selectedStartDate > selectedEndDate) {
-      setSimResult(null);
+    // 종료일이 없으면 "오늘"로 설정하여 시뮬레이션
+    const effectiveEndDate = selectedEndDate || getTodayKST();
+
+    if (selectedStartDate > effectiveEndDate) {
+      setSimResult(null); // 시작일이 종료일보다 미래면 결과 없음
       return;
     }
 
@@ -82,7 +88,7 @@ function App() {
 
     const params: SimParams = {
       startDate: selectedStartDate,
-      endDate: selectedEndDate,
+      endDate: effectiveEndDate,
       amountPerBuy: controlsState.amountPerBuy,
       frequency: controlsState.frequency,
     };
@@ -97,203 +103,116 @@ function App() {
     setIsCalculating(false);
   }, [dataStore, selectedStartDate, selectedEndDate, controlsState, wsState.lastPrice]);
 
-  if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '18px',
-        color: 'var(--text-primary)',
-        background: 'var(--bg-primary)'
-      }}>
-        ⏳ 데이터 로딩 중...
-      </div>
-    );
-  }
+  // 차트 클릭 핸들러
+  const handleChartClick = (date: string) => {
+    if (selectionMode === 'start') {
+      setSelectedStartDate(date);
+      setSelectionMode(null); // 선택 완료 후 모드 해제
+      // 시작일을 찍으면 종료일은 초기화 (다시 찍게 하거나, 현재까지로 리셋)
+      // 사용성을 위해 종료일은 일단 유지하거나 리셋? 
+      // 요청: "종료칸은 별도설정이 없으면 현재날짜까지 산다는거야" -> 리셋이 맞음
+      setSelectedEndDate(null);
+    } else if (selectionMode === 'end') {
+      if (selectedStartDate && date < selectedStartDate) {
+        alert("종료일은 시작일보다 뒤여야 합니다!");
+        return;
+      }
+      setSelectedEndDate(date);
+      setSelectionMode(null);
+    }
+  };
 
-  if (error || !dataStore) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '18px',
-        color: 'var(--color-fear)',
-        background: 'var(--bg-primary)'
-      }}>
-        {error || '데이터를 불러올 수 없습니다'}
-      </div>
-    );
-  }
+  if (loading) return <div style={{ padding: 50, textAlign: 'center' }}>LOADING...</div>;
+  if (error || !dataStore) return <div style={{ padding: 50, textAlign: 'center', color: 'red' }}>ERROR</div>;
 
   const { btcArray, fngArray, fngMap, meta } = dataStore;
   const today = getTodayKST();
   const currentFng = getLastKnownFng(today, fngMap, fngArray);
-  const isFngHoldLast = !fngMap.has(today);
   const currentBtcPrice = wsState.lastPrice || btcArray[btcArray.length - 1]?.c || 0;
 
   return (
-    <div className="app">
-      <ThemeToggle />
+    <div className="app" style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
 
       {/* 헤더 */}
-      <header style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        padding: '36px 20px',
-        textAlign: 'center',
-        boxShadow: 'var(--shadow-lg)'
-      }}>
-        <h1 style={{ fontSize: '36px', margin: 0, fontWeight: 'bold' }}>공포에 사라</h1>
-        <p style={{ fontSize: '18px', margin: '8px 0 0 0', opacity: 0.95 }}>
-          Buy the Dip - DCA 시뮬레이션
-        </p>
-      </header>
+      <h1 className="pixel-title">
+        BUY THE DIP<br />
+        <span style={{ fontSize: '14px', color: 'var(--pixel-accent)' }}>CRYPTOCURRENCY DCA SIMULATOR</span>
+      </h1>
 
-      {/* 메인 컨텐츠 */}
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '16px',
-        width: '100%'
-      }}>
-        {/* 광고 1 */}
-        <AdUnit slot="1234567890" />
+      {/* 대시보드 */}
+      <StatsCards
+        fngValue={currentFng?.v || 0}
+        fngStatus={currentFng?.s || '-'}
+        btcPrice={currentBtcPrice}
+        wsState={wsState}
+      />
 
-        {/* 대시보드 */}
-        <StatsCards
-          fngValue={currentFng?.v || 50}
-          fngStatus={currentFng?.s || 'Neutral'}
-          btcPrice={currentBtcPrice}
-          wsState={wsState}
-          isFngHoldLast={isFngHoldLast}
-        />
+      <div style={{ height: '20px' }} />
 
-        {/* 차트 */}
+      {/* 날짜 선택 컨트롤 패널 (차트 위로 이동하여 명확하게) */}
+      <div className="nes-container">
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
+
+          {/* 시작일 선택 */}
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ marginBottom: '10px' }}>START DATE</p>
+            <button
+              className={`nes-btn ${selectionMode === 'start' ? 'is-primary' : ''}`}
+              style={{ width: '100%' }}
+              onClick={() => setSelectionMode(selectionMode === 'start' ? null : 'start')}
+            >
+              {selectedStartDate || "CLICK TO SELECT"}
+            </button>
+            {selectionMode === 'start' && <p style={{ fontSize: '10px', color: 'var(--pixel-accent)', marginTop: '5px' }}>▲ CLICK ON CHART</p>}
+          </div>
+
+          {/* 종료일 선택 */}
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ marginBottom: '10px' }}>END DATE</p>
+            <button
+              className={`nes-btn ${selectionMode === 'end' ? 'is-primary' : ''}`}
+              style={{ width: '100%' }}
+              onClick={() => setSelectionMode(selectionMode === 'end' ? null : 'end')}
+            >
+              {selectedEndDate || "TODAY (CURRENT)"}
+            </button>
+            {selectionMode === 'end' && <p style={{ fontSize: '10px', color: 'var(--pixel-accent)', marginTop: '5px' }}>▲ CLICK ON CHART</p>}
+          </div>
+
+        </div>
+      </div>
+
+      <div style={{ height: '20px' }} />
+
+      {/* 차트 */}
+      <div className="nes-container" style={{ padding: '10px' }}>
         <Chart
           btcData={btcArray}
           fngData={fngArray}
-          onStartDateClick={setSelectedStartDate}
-          onEndDateClick={setSelectedEndDate}
+          selectionMode={selectionMode}
+          onDateSelect={handleChartClick}
           selectedStartDate={selectedStartDate}
           selectedEndDate={selectedEndDate}
           isMobile={isMobile}
         />
-
-        {/* 설정 및 선택 날짜 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-          gap: '16px',
-          margin: '16px 0'
-        }}>
-          {/* DCA 설정 */}
-          <Controls onChange={setControlsState} />
-
-          {/* 선택된 날짜 */}
-          <div style={{
-            background: 'var(--bg-card)',
-            padding: '20px',
-            borderRadius: '12px',
-            boxShadow: 'var(--shadow)',
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center'
-          }}>
-            <h3 style={{
-              fontSize: '16px',
-              marginBottom: '16px',
-              color: 'var(--text-primary)',
-              fontWeight: '600'
-            }}>
-              📅 선택된 기간
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>시작:</span>
-                <span style={{
-                  color: selectedStartDate ? '#10b981' : 'var(--text-secondary)',
-                  fontWeight: selectedStartDate ? '600' : 'normal',
-                  fontSize: '15px'
-                }}>
-                  {selectedStartDate || '차트에서 선택'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>종료:</span>
-                <span style={{
-                  color: selectedEndDate ? '#ef4444' : 'var(--text-secondary)',
-                  fontWeight: selectedEndDate ? '600' : 'normal',
-                  fontSize: '15px'
-                }}>
-                  {selectedEndDate || '차트에서 선택'}
-                </span>
-              </div>
-              {selectedStartDate && selectedEndDate && (
-                <button
-                  onClick={() => {
-                    setSelectedStartDate(null);
-                    setSelectedEndDate(null);
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    background: 'var(--color-fear)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    marginTop: '8px'
-                  }}
-                >
-                  초기화
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 광고 2 */}
-        <AdUnit slot="0987654321" />
-
-        {/* 시뮬레이션 결과 */}
-        <SimResultComp result={simResult} isCalculating={isCalculating} />
-
-        {/* 광고 3 */}
-        <AdUnit slot="1122334455" />
       </div>
 
-      {/* 푸터 */}
-      <footer style={{
-        marginTop: '48px',
-        padding: '24px 20px',
-        textAlign: 'center',
-        background: 'var(--bg-secondary)',
-        borderTop: '1px solid var(--border-color)',
-        color: 'var(--text-secondary)',
-        fontSize: '13px'
-      }}>
-        <div style={{
-          maxWidth: '600px',
-          margin: '0 auto 16px auto',
-          padding: '12px',
-          background: 'var(--bg-card)',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)'
-        }}>
-          <div style={{ fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>
-            📊 데이터 상태
-          </div>
-          <div>업데이트: {new Date(meta.u).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</div>
-          {wsState.connected && <div style={{ marginTop: '4px' }}>⚡ BTC 실시간 보정 중</div>}
-        </div>
-        <p>⚠️ 과거 데이터 기반 시뮬레이션 도구입니다. 투자 권유가 아닙니다.</p>
-        <p style={{ marginTop: '8px', fontSize: '12px' }}>© 2026 Buy the Dip</p>
+      <div style={{ height: '20px' }} />
+
+      {/* DCA 설정 */}
+      <Controls onChange={setControlsState} />
+
+      <div style={{ height: '20px' }} />
+
+      {/* 광고 */}
+      <AdUnit slot="12345" />
+
+      {/* 시뮬레이션 결과 */}
+      <SimResultComp result={simResult} isCalculating={isCalculating} />
+
+      <footer style={{ marginTop: '50px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
+        <p>DATA UPDATED: {meta.u.split('T')[0]}</p>
+        <p>© 2026 PROJECT BUY-THE-DIP</p>
       </footer>
     </div>
   );

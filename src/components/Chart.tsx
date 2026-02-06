@@ -1,5 +1,5 @@
 /**
- * ECharts 오버레이 차트 - 깔끔한 버전
+ * 차트 컴포넌트 - 픽셀 스타일 & UX 개선
  */
 
 import { useEffect, useRef } from 'react';
@@ -9,258 +9,215 @@ import type { BtcData, FngData } from '../lib/data';
 interface ChartProps {
     btcData: BtcData[];
     fngData: FngData[];
-    onStartDateClick?: (date: string) => void;
-    onEndDateClick?: (date: string) => void;
-    selectedStartDate?: string | null;
-    selectedEndDate?: string | null;
+    selectionMode: 'start' | 'end' | null;
+    onDateSelect: (date: string) => void;
+    selectedStartDate: string | null;
+    selectedEndDate: string | null;
     isMobile: boolean;
 }
 
 export default function Chart({
     btcData,
     fngData,
-    onStartDateClick,
-    onEndDateClick,
+    selectionMode,
+    onDateSelect,
     selectedStartDate,
     selectedEndDate,
     isMobile
 }: ChartProps) {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstance = useRef<echarts.ECharts | null>(null);
-    const clickModeRef = useRef<'start' | 'end'>('start');
 
     useEffect(() => {
         if (!chartRef.current) return;
-
         if (!chartInstance.current) {
             chartInstance.current = echarts.init(chartRef.current);
         }
-
         const chart = chartInstance.current;
+
         const fngMap = new Map(fngData.map(f => [f.d, f.v]));
         const sortedBtcData = [...btcData].sort((a, b) => a.d.localeCompare(b.d));
 
-        const formatKRW = (value: number): string => {
-            return '₩' + Math.floor(value).toLocaleString('ko-KR');
-        };
+        // 픽셀 폰트 설정
+        const fontFamily = "'Press Start 2P', cursive";
+        const textColor = '#ffffff';
 
         const option: echarts.EChartsOption = {
             backgroundColor: 'transparent',
-            title: {
-                text: '비트코인 가격 & 공포·탐욕 지수',
-                left: 'center',
-                top: 10,
-                textStyle: {
-                    fontSize: 18,
-                    fontWeight: 600,
-                    color: 'var(--text-primary)'
-                }
+            grid: {
+                left: 60,
+                right: 60,
+                top: 40,
+                bottom: 40,
             },
             tooltip: {
                 trigger: 'axis',
-                axisPointer: { type: 'cross' },
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-color)',
-                textStyle: { color: 'var(--text-primary)' },
+                axisPointer: { type: 'cross', label: { fontFamily } },
+                backgroundColor: '#000000',
+                borderColor: '#ffffff',
+                borderWidth: 2,
+                textStyle: { fontFamily, color: '#ffffff', fontSize: 10 },
                 formatter: (params: any) => {
                     const date = params[0].axisValue;
-                    let result = `<b>${date}</b><br/>`;
+                    let html = `${date}<br/>`;
                     params.forEach((p: any) => {
-                        if (p.seriesName === 'BTC 가격') {
-                            result += `${p.marker} ${p.seriesName}: ${formatKRW(p.value)}<br/>`;
-                        } else {
-                            result += `${p.marker} ${p.seriesName}: ${p.value}<br/>`;
-                        }
+                        const val = p.currency === 'KRW'
+                            ? Math.floor(p.value).toLocaleString() + ' KRW'
+                            : p.value;
+                        html += `${p.marker} ${p.seriesName}: ${val}<br/>`;
                     });
-                    return result;
+                    return html;
                 }
-            },
-            legend: {
-                data: ['공포·탐욕 지수', 'BTC 가격'],
-                top: 40,
-                textStyle: { color: 'var(--text-primary)' }
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '12%',
-                top: '18%',
-                containLabel: true
             },
             xAxis: {
                 type: 'category',
                 data: sortedBtcData.map(b => b.d),
-                boundaryGap: false,
-                axisLabel: {
-                    color: 'var(--text-secondary)',
-                    rotate: isMobile ? 45 : 0,
-                    fontSize: 11
-                },
-                axisLine: { lineStyle: { color: 'var(--border-color)' } }
+                axisLabel: { fontFamily, color: textColor, fontSize: 10 },
+                axisLine: { lineStyle: { color: textColor, width: 2 } }
             },
             yAxis: [
                 {
                     type: 'value',
-                    name: '공포·탐욕 지수',
+                    name: 'FNG',
                     min: 0,
                     max: 100,
                     position: 'left',
-                    nameTextStyle: { color: 'var(--text-primary)', fontSize: 12 },
-                    axisLabel: { color: 'var(--text-secondary)', fontSize: 11 },
-                    axisLine: { lineStyle: { color: '#667eea' } },
-                    splitLine: {
-                        lineStyle: { color: 'var(--border-color)', type: 'dashed' }
-                    }
+                    axisLabel: { fontFamily, color: textColor },
+                    axisLine: { lineStyle: { color: '#00ff00', width: 2 } },
+                    splitLine: { show: false }
                 },
                 {
                     type: 'value',
-                    name: 'BTC (원화)',
+                    name: 'BTC',
                     position: 'right',
-                    nameTextStyle: { color: 'var(--text-primary)', fontSize: 12 },
                     axisLabel: {
-                        formatter: formatKRW,
-                        color: 'var(--text-secondary)',
-                        fontSize: 11
+                        fontFamily,
+                        color: textColor,
+                        formatter: (val: number) => {
+                            if (val >= 100000000) return (val / 100000000).toFixed(1) + '억';
+                            return (val / 10000).toFixed(0) + '만';
+                        }
                     },
-                    axisLine: { lineStyle: { color: '#f5576c' } },
+                    axisLine: { lineStyle: { color: '#ff00ff', width: 2 } },
                     splitLine: { show: false }
                 }
             ],
             series: [
                 {
-                    name: '공포·탐욕 지수',
+                    name: 'FNG',
                     type: 'line',
                     yAxisIndex: 0,
-                    data: sortedBtcData.map(b => fngMap.get(b.d) || null),
-                    smooth: true,
-                    lineStyle: { color: '#667eea', width: 2 },
-                    areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(102, 126, 234, 0.3)' },
-                            { offset: 1, color: 'rgba(102, 126, 234, 0.05)' }
-                        ])
-                    },
-                    emphasis: { focus: 'series' },
-                    symbol: 'none'
+                    data: sortedBtcData.map(b => {
+                        const v = fngMap.get(b.d);
+                        return v !== undefined ? v : null;
+                    }),
+                    itemStyle: { color: '#00ff00' }, // Pixel Green
+                    lineStyle: { width: 2, type: 'solid' },
+                    symbol: 'none',
+                    // Extreme Fear/Greed 표시 복구
+                    markArea: {
+                        itemStyle: { opacity: 0.3 },
+                        data: [
+                            [
+                                { yAxis: 0 }, { yAxis: 25, itemStyle: { color: '#ff0000' } } // Extreme Fear (Red)
+                            ],
+                            [
+                                { yAxis: 75 }, { yAxis: 100, itemStyle: { color: '#00ff00' } } // Extreme Greed (Green)
+                            ]
+                        ]
+                    }
                 },
                 {
-                    name: 'BTC 가격',
+                    name: 'BTC',
                     type: 'line',
                     yAxisIndex: 1,
                     data: sortedBtcData.map(b => b.c),
-                    smooth: true,
-                    lineStyle: { color: '#f5576c', width: 2 },
-                    emphasis: { focus: 'series' },
+                    itemStyle: { color: '#ff00ff' }, // Magenta
+                    lineStyle: { width: 2 },
                     symbol: 'none'
                 }
             ],
             dataZoom: [
-                {
-                    type: 'inside',
-                    start: 0,
-                    end: 100
-                },
+                { type: 'inside' },
                 {
                     type: 'slider',
-                    start: 0,
-                    end: 100,
-                    height: 25,
-                    textStyle: { color: 'var(--text-secondary)' },
-                    borderColor: 'var(--border-color)',
-                    fillerColor: 'rgba(102, 126, 234, 0.15)',
-                    handleStyle: { color: '#667eea' }
+                    height: 20,
+                    bottom: 0,
+                    borderColor: '#ffffff',
+                    fillerColor: 'rgba(255, 255, 255, 0.2)',
+                    textStyle: { fontFamily, color: '#ffffff', fontSize: 10 }
                 }
             ]
         };
 
-        // 선택된 날짜 마커
-        if (selectedStartDate || selectedEndDate) {
-            const markLines: any[] = [];
-            if (selectedStartDate) {
-                markLines.push({
-                    xAxis: selectedStartDate,
-                    label: {
-                        formatter: '시작',
-                        color: '#fff',
-                        backgroundColor: '#10b981',
-                        padding: [4, 8],
-                        borderRadius: 4,
-                        fontSize: 12
-                    },
-                    lineStyle: { color: '#10b981', width: 2, type: 'solid' }
-                });
-            }
-            if (selectedEndDate) {
-                markLines.push({
-                    xAxis: selectedEndDate,
-                    label: {
-                        formatter: '종료',
-                        color: '#fff',
-                        backgroundColor: '#ef4444',
-                        padding: [4, 8],
-                        borderRadius: 4,
-                        fontSize: 12
-                    },
-                    lineStyle: { color: '#ef4444', width: 2, type: 'solid' }
-                });
-            }
-
-            if (option.series && Array.isArray(option.series) && option.series[1]) {
-                (option.series[1] as any).markLine = {
-                    data: markLines,
-                    symbol: 'none'
-                };
-            }
+        // 선택된 날짜 마커 (세로선)
+        const markLines = [];
+        if (selectedStartDate) {
+            markLines.push({
+                xAxis: selectedStartDate,
+                label: {
+                    formatter: 'START', position: 'start',
+                    backgroundColor: '#00ff00', color: 'black', padding: 4, borderRadius: 0
+                },
+                lineStyle: { color: '#00ff00', width: 3, type: 'solid' }
+            });
+        }
+        if (selectedEndDate) {
+            markLines.push({
+                xAxis: selectedEndDate,
+                label: {
+                    formatter: 'END', position: 'end',
+                    backgroundColor: '#ff0000', color: 'white', padding: 4, borderRadius: 0
+                },
+                lineStyle: { color: '#ff0000', width: 3, type: 'solid' }
+            });
         }
 
-        chart.setOption(option, true);
+        if (option.series && Array.isArray(option.series)) {
+            // BTC 시리즈에 마크라인 추가
+            (option.series[1] as any).markLine = {
+                data: markLines,
+                symbol: 'none',
+                silent: true
+            };
+        }
+
+        chart.setOption(option);
 
         // 클릭 이벤트
         chart.off('click');
         chart.on('click', (params: any) => {
-            if (params.componentType === 'series' && params.name) {
-                const clickedDate = params.name;
-
-                if (clickModeRef.current === 'start') {
-                    onStartDateClick?.(clickedDate);
-                    clickModeRef.current = 'end';
-                } else {
-                    onEndDateClick?.(clickedDate);
-                    clickModeRef.current = 'start';
-                }
+            if (selectionMode) {
+                onDateSelect(params.name); // 날짜 전달
             }
         });
 
+        // 커서 스타일 변경
+        chart.getZr().setCursorStyle(selectionMode ? 'crosshair' : 'default');
+
         const handleResize = () => chart.resize();
         window.addEventListener('resize', handleResize);
-
         return () => {
             window.removeEventListener('resize', handleResize);
-            chart.off('click');
-        };
-    }, [btcData, fngData, isMobile, selectedStartDate, selectedEndDate, onStartDateClick, onEndDateClick]);
+            chart.dispose();
+        }
+    }, [btcData, fngData, selectionMode, selectedStartDate, selectedEndDate, isMobile]); // 의존성 배열
 
     return (
-        <div style={{ margin: '16px 0' }}>
-            <div style={{
-                textAlign: 'center',
-                marginBottom: '8px',
-                fontSize: '13px',
-                color: 'var(--text-secondary)'
-            }}>
-                💡 차트를 클릭하여 매수 시작/종료 시점을 선택하세요
-            </div>
+        <div style={{ position: 'relative' }}>
+            {selectionMode && (
+                <div style={{
+                    position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: 'var(--pixel-accent)', color: 'black', padding: '5px 10px',
+                    zIndex: 10, fontFamily: "'Press Start 2P', cursive", fontSize: '10px',
+                    border: '2px solid white'
+                }}>
+                    {selectionMode === 'start' ? 'SELECT START DATE' : 'SELECT END DATE'}
+                </div>
+            )}
             <div
                 ref={chartRef}
-                style={{
-                    width: '100%',
-                    height: isMobile ? '400px' : '550px',
-                    background: 'var(--bg-card)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    boxShadow: 'var(--shadow)',
-                    border: '1px solid var(--border-color)'
-                }}
+                style={{ width: '100%', height: '400px', cursor: selectionMode ? 'crosshair' : 'default' }}
             />
         </div>
     );
