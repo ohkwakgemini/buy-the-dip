@@ -1,37 +1,25 @@
 /**
- * 매수/청산 조건 입력 컴포넌트
+ * 매수 조건 입력 컴포넌트 - 초간소화 버전 (DCA 전용)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export interface ControlsState {
     amountPerBuy: number;
     frequency: 'daily' | 'weekly' | 'monthly';
-    buyThreshold: number;
-    consecutiveDays: number;
-    useConsecutive: boolean;
-    sellType: 'date' | 'current';
-    sellDate: string;
-    feeRate: number;
 }
 
 interface ControlsProps {
     onChange: (state: ControlsState) => void;
-    minDate: string;
-    maxDate: string;
 }
 
-export default function Controls({ onChange, minDate, maxDate }: ControlsProps) {
+export default function Controls({ onChange }: ControlsProps) {
     const [state, setState] = useState<ControlsState>({
         amountPerBuy: 100000,
         frequency: 'weekly',
-        buyThreshold: 25,
-        consecutiveDays: 3,
-        useConsecutive: false,
-        sellType: 'current',
-        sellDate: maxDate,
-        feeRate: 0,
     });
+
+    const [amountInput, setAmountInput] = useState('100,000');
 
     const updateState = (updates: Partial<ControlsState>) => {
         const newState = { ...state, ...updates };
@@ -39,194 +27,128 @@ export default function Controls({ onChange, minDate, maxDate }: ControlsProps) 
         onChange(newState);
     };
 
+    const formatAmount = (value: number): string => {
+        return value.toLocaleString('ko-KR');
+    };
+
+    const getAmountUnit = (value: number): string => {
+        if (value >= 100000000) {
+            return `${(value / 100000000).toFixed(1)}억원`;
+        } else if (value >= 10000000) {
+            return `${(value / 10000000).toFixed(0)}천만원`;
+        } else if (value >= 1000000) {
+            return `${(value / 1000000).toFixed(0)}백만원`;
+        } else if (value >= 10000) {
+            return `${(value / 10000).toFixed(0)}만원`;
+        } else if (value >= 1000) {
+            return `${(value / 1000).toFixed(0)}천원`;
+        }
+        return '';
+    };
+
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        const numValue = parseInt(value) || 0;
+        setAmountInput(formatAmount(numValue));
+        updateState({ amountPerBuy: numValue });
+    };
+
+    useEffect(() => {
+        setAmountInput(formatAmount(state.amountPerBuy));
+    }, []);
+
     return (
         <div style={{
-            background: 'white',
-            padding: '24px',
+            background: 'var(--bg-card)',
+            padding: '20px',
             borderRadius: '12px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            margin: '20px 0'
+            boxShadow: 'var(--shadow)',
+            border: '1px solid var(--border-color)'
         }}>
-            <h2 style={{ fontSize: '20px', marginBottom: '20px' }}>
-                ⚙️ 시뮬레이션 설정
-            </h2>
+            <h3 style={{
+                fontSize: '16px',
+                marginBottom: '16px',
+                color: 'var(--text-primary)',
+                fontWeight: '600'
+            }}>
+                ⚙️ DCA 설정
+            </h3>
 
-            {/* 회당 매수금액 */}
-            <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                    회당 매수금액 (KRW)
-                </label>
-                <input
-                    type="number"
-                    value={state.amountPerBuy}
-                    onChange={(e) => updateState({ amountPerBuy: parseInt(e.target.value) || 0 })}
-                    style={{
-                        width: '100%',
-                        padding: '12px',
-                        fontSize: '16px',
-                        border: '2px solid #e0e0e0',
-                        borderRadius: '8px'
-                    }}
-                    min="1000"
-                    step="10000"
-                />
-            </div>
-
-            {/* 매수 주기 */}
-            <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                    매수 주기
-                </label>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    {(['daily', 'weekly', 'monthly'] as const).map((freq) => (
-                        <label key={freq} style={{
-                            flex: 1,
-                            cursor: 'pointer',
-                            padding: '12px',
-                            border: `2px solid ${state.frequency === freq ? '#667eea' : '#e0e0e0'}`,
-                            borderRadius: '8px',
-                            textAlign: 'center',
-                            background: state.frequency === freq ? '#f0f4ff' : 'white',
-                            transition: 'all 0.2s'
-                        }}>
-                            <input
-                                type="radio"
-                                name="frequency"
-                                value={freq}
-                                checked={state.frequency === freq}
-                                onChange={() => updateState({ frequency: freq })}
-                                style={{ marginRight: '8px' }}
-                            />
-                            {freq === 'daily' ? '매일' : freq === 'weekly' ? '매주' : '매월'}
-                        </label>
-                    ))}
-                </div>
-            </div>
-
-            {/* 매수 조건 */}
-            <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                    매수 조건 (Extreme Fear 임계값: {state.buyThreshold})
-                </label>
-                <input
-                    type="range"
-                    min="0"
-                    max="50"
-                    value={state.buyThreshold}
-                    onChange={(e) => updateState({ buyThreshold: parseInt(e.target.value) })}
-                    style={{ width: '100%' }}
-                />
-                <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                    FNG ≤ {state.buyThreshold}일 때 매수
-                </div>
-
-                {/* 연속 n일 옵션 */}
-                <div style={{ marginTop: '12px' }}>
-                    <label style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={state.useConsecutive}
-                            onChange={(e) => updateState({ useConsecutive: e.target.checked })}
-                            style={{ marginRight: '8px' }}
-                        />
-                        연속 {state.consecutiveDays}일 조건 적용
-                    </label>
-                    {state.useConsecutive && (
-                        <input
-                            type="number"
-                            value={state.consecutiveDays}
-                            onChange={(e) => updateState({ consecutiveDays: parseInt(e.target.value) || 1 })}
-                            style={{
-                                marginLeft: '12px',
-                                padding: '4px 8px',
-                                width: '60px',
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '4px'
-                            }}
-                            min="1"
-                            max="30"
-                        />
-                    )}
-                </div>
-            </div>
-
-            {/* 청산 조건 */}
-            <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                    청산 조건
-                </label>
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {/* 회당 매수금액 */}
+                <div>
                     <label style={{
-                        flex: 1,
-                        cursor: 'pointer',
-                        padding: '12px',
-                        border: `2px solid ${state.sellType === 'current' ? '#667eea' : '#e0e0e0'}`,
-                        borderRadius: '8px',
-                        textAlign: 'center',
-                        background: state.sellType === 'current' ? '#f0f4ff' : 'white'
+                        display: 'block',
+                        marginBottom: '6px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        color: 'var(--text-primary)'
                     }}>
-                        <input
-                            type="radio"
-                            name="sellType"
-                            value="current"
-                            checked={state.sellType === 'current'}
-                            onChange={() => updateState({ sellType: 'current' })}
-                            style={{ marginRight: '8px' }}
-                        />
-                        현재가 평가
+                        회당 매수금액
                     </label>
-                    <label style={{
-                        flex: 1,
-                        cursor: 'pointer',
-                        padding: '12px',
-                        border: `2px solid ${state.sellType === 'date' ? '#667eea' : '#e0e0e0'}`,
-                        borderRadius: '8px',
-                        textAlign: 'center',
-                        background: state.sellType === 'date' ? '#f0f4ff' : 'white'
-                    }}>
-                        <input
-                            type="radio"
-                            name="sellType"
-                            value="date"
-                            checked={state.sellType === 'date'}
-                            onChange={() => updateState({ sellType: 'date' })}
-                            style={{ marginRight: '8px' }}
-                        />
-                        지정 날짜 청산
-                    </label>
-                </div>
-                {state.sellType === 'date' && (
                     <input
-                        type="date"
-                        value={state.sellDate}
-                        onChange={(e) => updateState({ sellDate: e.target.value })}
-                        min={minDate}
-                        max={maxDate}
+                        type="text"
+                        value={amountInput}
+                        onChange={handleAmountChange}
+                        placeholder="100,000"
                         style={{
                             width: '100%',
-                            padding: '12px',
-                            fontSize: '16px',
-                            border: '2px solid #e0e0e0',
-                            borderRadius: '8px'
+                            padding: '10px',
+                            fontSize: '15px',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
+                            background: 'var(--bg-secondary)',
+                            color: 'var(--text-primary)',
                         }}
                     />
-                )}
-            </div>
+                    <div style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        marginTop: '4px'
+                    }}>
+                        {getAmountUnit(state.amountPerBuy)}
+                    </div>
+                </div>
 
-            {/* 수수료 */}
-            <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                    수수료율 ({(state.feeRate * 100).toFixed(2)}%)
-                </label>
-                <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.001"
-                    value={state.feeRate}
-                    onChange={(e) => updateState({ feeRate: parseFloat(e.target.value) })}
-                    style={{ width: '100%' }}
-                />
+                {/* 매수 주기 */}
+                <div>
+                    <label style={{
+                        display: 'block',
+                        marginBottom: '6px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        color: 'var(--text-primary)'
+                    }}>
+                        매수 주기
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {(['daily', 'weekly', 'monthly'] as const).map((freq) => (
+                            <label key={freq} style={{
+                                flex: 1,
+                                cursor: 'pointer',
+                                padding: '10px 8px',
+                                border: `1px solid ${state.frequency === freq ? '#667eea' : 'var(--border-color)'}`,
+                                borderRadius: '6px',
+                                textAlign: 'center',
+                                background: state.frequency === freq ? 'rgba(102, 126, 234, 0.1)' : 'var(--bg-secondary)',
+                                color: state.frequency === freq ? '#667eea' : 'var(--text-primary)',
+                                fontSize: '13px',
+                                fontWeight: state.frequency === freq ? '600' : 'normal',
+                                transition: 'all 0.2s'
+                            }}>
+                                <input
+                                    type="radio"
+                                    name="frequency"
+                                    value={freq}
+                                    checked={state.frequency === freq}
+                                    onChange={() => updateState({ frequency: freq })}
+                                    style={{ display: 'none' }}
+                                />
+                                {freq === 'daily' ? '매일' : freq === 'weekly' ? '매주' : '매월'}
+                            </label>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
