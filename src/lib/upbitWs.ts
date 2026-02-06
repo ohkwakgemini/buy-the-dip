@@ -2,7 +2,7 @@
  * Upbit WebSocket 연결 및 실시간 BTC 가격 수신
  */
 
-import { getTodayKST } from './data';
+import * as React from 'react';
 
 export interface WsState {
     connected: boolean;
@@ -132,6 +132,3 @@ export function useUpbitWebSocket(
 
     return state;
 }
-
-// React import (TypeScript에서 사용하기 위해)
-import * as React from 'react';

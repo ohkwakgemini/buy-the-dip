@@ -2,7 +2,8 @@
  * DCA 시뮬레이션 계산 로직
  */
 
-import { BtcData, FngData, getLastKnownFng } from './data';
+import type { FngData } from './data';
+import { getLastKnownFng } from './data';
 
 export interface SimParams {
     startDate: string;
