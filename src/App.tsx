@@ -141,6 +141,7 @@ function App() {
       <StatsCards
         fngValue={currentFng?.v || 0}
         fngStatus={currentFng?.s || '-'}
+        fngDate={currentFng?.d || today}
         btcPrice={currentBtcPrice}
         wsState={wsState}
         isMobile={isMobile}

@@ -71,22 +71,25 @@ export function formatKST(date: Date): string {
 
 /**
  * Hold-last FNG: 해당 날짜의 FNG가 없으면 마지막 알려진 값 반환
+ * 날짜 정보(d)를 포함하여 반환
  */
 export function getLastKnownFng(
     date: string,
     fngMap: Map<string, { v: number; s: string }>,
     fngArray: FngData[]
-): { v: number; s: string } | null {
+): FngData | null {
     // 해당 날짜에 FNG가 있으면 반환
     if (fngMap.has(date)) {
-        return fngMap.get(date)!;
+        const data = fngMap.get(date)!;
+        return { d: date, v: data.v, s: data.s };
     }
 
     // 없으면 이전 날짜 중 가장 최근 값 찾기
     const sortedDates = fngArray.map(f => f.d).sort();
     for (let i = sortedDates.length - 1; i >= 0; i--) {
         if (sortedDates[i] < date) {
-            return fngMap.get(sortedDates[i])!;
+            const data = fngMap.get(sortedDates[i])!;
+            return { d: sortedDates[i], v: data.v, s: data.s };
         }
     }
 

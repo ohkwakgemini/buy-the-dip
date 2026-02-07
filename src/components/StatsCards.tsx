@@ -3,6 +3,7 @@ import type { WsState } from '../lib/upbitWs';
 interface StatsCardsProps {
     fngValue: number;
     fngStatus: string;
+    fngDate: string;  // FNG 데이터 날짜 (YYYY-MM-DD)
     btcPrice: number;
     wsState: WsState;
     isMobile: boolean;
@@ -11,6 +12,7 @@ interface StatsCardsProps {
 export default function StatsCards({
     fngValue,
     fngStatus,
+    fngDate,
     btcPrice,
     wsState,
     isMobile,
@@ -89,6 +91,11 @@ export default function StatsCards({
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
                     <span style={{ fontSize: fngScoreSize, fontWeight: 'bold', color: statusColor, lineHeight: 1 }}>{fngValue}</span>
                     <span style={{ fontSize: fngTextSize, color: statusColor, paddingBottom: isMobile ? '4px' : '6px' }}>{statusText}</span>
+                </div>
+
+                {/* 날짜 정보 */}
+                <div style={{ marginTop: '8px', fontSize: isMobile ? '12px' : '14px', color: '#888' }}>
+                    기준: {fngDate} (Alternative.me)
                 </div>
 
                 {/* 툴팁 스타일 (JSX style 태그) */}
