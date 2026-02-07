@@ -45,10 +45,10 @@ async function delay(ms) {
 
 async function fetchUpbitCandles(to = null, count = 200, retries = 3) {
   const baseUrl = 'https://api.upbit.com/v1/candles/days';
-  const url = to 
+  const url = to
     ? `${baseUrl}?market=KRW-BTC&count=${count}&to=${to}`
     : `${baseUrl}?market=KRW-BTC&count=${count}`;
-  
+
   for (let i = 0; i < retries; i++) {
     try {
       const data = await httpsGet(url);
@@ -83,21 +83,21 @@ async function bootstrapBTC() {
   const allData = [];
   let to = null;
   const targetDays = 365 * 5 + 365; // 6년치 (여유)
-  
+
   while (allData.length < targetDays) {
     console.log(`Fetched ${allData.length} candles...`);
     const candles = await fetchUpbitCandles(to, 200);
     if (candles.length === 0) break;
-    
+
     allData.push(...candles);
-    
+
     // 다음 페이지를 위한 to 파라미터 (가장 오래된 날짜)
     const oldest = candles[candles.length - 1];
     to = `${oldest.d}T00:00:00`;
-    
+
     await delay(200); // Rate limit 방지
   }
-  
+
   console.log(`Total BTC candles: ${allData.length}`);
   return allData;
 }
@@ -112,12 +112,12 @@ async function bootstrapFNG() {
 async function dailyUpdateBTC(existingData) {
   console.log('Daily mode: Fetching recent BTC data...');
   const recent = await fetchUpbitCandles(null, 7); // 최근 7일
-  
+
   // 병합 및 중복 제거
   const map = new Map();
   existingData.forEach(item => map.set(item.d, item));
   recent.forEach(item => map.set(item.d, item));
-  
+
   const merged = Array.from(map.values()).sort((a, b) => a.d.localeCompare(b.d));
   console.log(`Updated BTC data: ${merged.length} entries`);
   return merged;
@@ -126,12 +126,12 @@ async function dailyUpdateBTC(existingData) {
 async function dailyUpdateFNG(existingData) {
   console.log('Daily mode: Fetching recent FNG data...');
   const recent = await fetchFNG(7); // 최근 7일
-  
+
   // 병합 및 중복 제거
   const map = new Map();
   existingData.forEach(item => map.set(item.d, item));
   recent.forEach(item => map.set(item.d, item));
-  
+
   const merged = Array.from(map.values()).sort((a, b) => a.d.localeCompare(b.d));
   console.log(`Updated FNG data: ${merged.length} entries`);
   return merged;
@@ -140,8 +140,8 @@ async function dailyUpdateFNG(existingData) {
 function saveMeta(btcData, fngData) {
   const meta = {
     u: new Date().toISOString(),
-    start: btcData[0]?.d || '',
-    end: btcData[btcData.length - 1]?.d || '',
+    start: btcData[0]?.d || '',                  // 가장 오래된 날짜 (오름차순 기준)
+    end: btcData[btcData.length - 1]?.d || '',   // 가장 최신 날짜
     rows_b: btcData.length,
     rows_f: fngData.length,
     ver: '1.0.0'
@@ -152,35 +152,39 @@ function saveMeta(btcData, fngData) {
 
 async function main() {
   const mode = process.argv[2] || 'daily';
-  
+
   // 데이터 디렉토리 생성
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
-  
+
   let btcData, fngData;
-  
+
   if (mode === 'bootstrap') {
     btcData = await bootstrapBTC();
     fngData = await bootstrapFNG();
   } else {
     // Daily 모드
-    const existingBTC = fs.existsSync(BTC_FILE) 
+    const existingBTC = fs.existsSync(BTC_FILE)
       ? JSON.parse(fs.readFileSync(BTC_FILE, 'utf8'))
       : [];
     const existingFNG = fs.existsSync(FNG_FILE)
       ? JSON.parse(fs.readFileSync(FNG_FILE, 'utf8'))
       : [];
-    
+
     btcData = await dailyUpdateBTC(existingBTC);
     fngData = await dailyUpdateFNG(existingFNG);
   }
-  
+
+  // 항상 날짜 오름차순 정렬 (차트 렌더링 최적화)
+  btcData.sort((a, b) => a.d.localeCompare(b.d));
+  fngData.sort((a, b) => a.d.localeCompare(b.d));
+
   // Minify 저장
   fs.writeFileSync(BTC_FILE, JSON.stringify(btcData));
   fs.writeFileSync(FNG_FILE, JSON.stringify(fngData));
   saveMeta(btcData, fngData);
-  
+
   console.log('✅ Data update complete!');
 }
 

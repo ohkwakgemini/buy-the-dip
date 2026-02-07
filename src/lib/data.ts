@@ -37,6 +37,10 @@ export async function loadAllData(): Promise<DataStore> {
         fetch('/data/m.json').then(r => r.json()) as Promise<MetaData>,
     ]);
 
+    // 날짜 기준 정렬 (필요 시)
+    btcArray.sort((a, b) => a.d.localeCompare(b.d));
+    fngArray.sort((a, b) => a.d.localeCompare(b.d));
+
     // Map 생성 (O(1) 조회용)
     const btcMap = new Map<string, number>();
     btcArray.forEach(item => btcMap.set(item.d, item.c));

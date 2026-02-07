@@ -1,9 +1,3 @@
-/**
- * DCA 시뮬레이션 계산 로직 - 간소화 버전
- */
-
-
-
 export interface SimParams {
     startDate: string;
     endDate: string;
@@ -15,10 +9,17 @@ export interface SimResult {
     totalInvested: number;
     totalBtc: number;
     avgPrice: number;
-    currentValue: number;
-    profit: number;
-    profitRate: number;
-    buyCount: number;
+
+    // 종료일 기준 매도
+    finalValueAtEnd: number; // 종료일 당시 가치
+    profit: number; // 종료일 기준 수익금
+    profitRate: number; // 종료일 기준 수익률
+
+    // 현재가 기준 평가
+    currentValue: number; // 현재 가치
+    profitByCurrent: number; // 현재 기준 수익금
+    profitRateByCurrent: number; // 현재 기준 수익률
+
     skipCount: number;
 }
 
@@ -31,68 +32,80 @@ export function runSimulation(
 
     let totalInvested = 0;
     let totalBtc = 0;
-    let buyCount = 0;
     let skipCount = 0;
 
-    // 날짜 범위 생성
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dates: string[] = [];
+    // 날짜 순회
+    // 타임존 보정 (KST)
+    // 간단히 문자열 비교로 진행 (yyyy-mm-dd)
 
-    if (frequency === 'daily') {
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            dates.push(d.toISOString().split('T')[0]);
+    // 날짜 생성기
+    let currentDateStr = startDate;
+
+    while (currentDateStr <= endDate) {
+        if (currentDateStr > endDate) break;
+
+        const price = btcMap.get(currentDateStr);
+
+        if (price) {
+            // 매수 실행 (무조건 매수)
+            const btcBought = amountPerBuy / price;
+            totalBtc += btcBought;
+            totalInvested += amountPerBuy;
+        } else {
+            skipCount++;
         }
-    } else if (frequency === 'weekly') {
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 7)) {
-            dates.push(d.toISOString().split('T')[0]);
-        }
-    } else if (frequency === 'monthly') {
-        const startDayOfMonth = start.getDate();
-        for (let d = new Date(start); d <= end;) {
-            dates.push(d.toISOString().split('T')[0]);
+
+        // 다음 날짜 계산
+        const d = new Date(currentDateStr);
+        if (frequency === 'daily') {
+            d.setDate(d.getDate() + 1);
+        } else if (frequency === 'weekly') {
+            d.setDate(d.getDate() + 7);
+        } else if (frequency === 'monthly') {
             d.setMonth(d.getMonth() + 1);
-
-            // 해당 월에 시작일이 없으면 말일로
-            const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-            if (startDayOfMonth > lastDayOfMonth) {
-                d.setDate(lastDayOfMonth);
-            } else {
-                d.setDate(startDayOfMonth);
-            }
         }
+        currentDateStr = d.toISOString().split('T')[0];
     }
 
-    // DCA 매수 (조건 없이 무조건 매수)
-    dates.forEach((date) => {
-        const price = btcMap.get(date);
+    const avgPrice = totalInvested > 0 ? totalInvested / totalBtc : 0;
 
-        if (!price) {
-            skipCount++;
-            return;
+    // 1. 종료일 기준 가치 (종료일의 종가로 평가)
+    // 종료일의 가격이 없으면 가장 마지막으로 확인된 가격 사용? 
+    // 여기서는 endDate가 오늘일 수도 있고 과거일 수도 있음.
+    // endDate의 가격을 찾고, 없으면 그 전날들을 뒤져야 함.
+    let endPrice = btcMap.get(endDate) || 0;
+    if (endPrice === 0) {
+        // endDate 가격 없으면 역주행해서 찾기 (최대 7일)
+        let tempDate = new Date(endDate);
+        for (let i = 0; i < 7; i++) {
+            const tempStr = tempDate.toISOString().split('T')[0];
+            const p = btcMap.get(tempStr);
+            if (p) { endPrice = p; break; }
+            tempDate.setDate(tempDate.getDate() - 1);
         }
+    }
+    // 그래도 없으면 currentPrice 사용
+    if (endPrice === 0) endPrice = currentPrice;
 
-        // 무조건 매수
-        const btcAmount = amountPerBuy / price;
-        totalBtc += btcAmount;
-        totalInvested += amountPerBuy;
-        buyCount++;
-    });
-
-    // 결과 계산
-    const avgPrice = buyCount > 0 ? totalInvested / totalBtc : 0;
-    const currentValue = totalBtc * currentPrice;
-    const profit = currentValue - totalInvested;
+    const finalValueAtEnd = totalBtc * endPrice;
+    const profit = finalValueAtEnd - totalInvested;
     const profitRate = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+
+    // 2. 현재가 기준 평가
+    const currentValue = totalBtc * currentPrice;
+    const profitByCurrent = currentValue - totalInvested;
+    const profitRateByCurrent = totalInvested > 0 ? (profitByCurrent / totalInvested) * 100 : 0;
 
     return {
         totalInvested,
         totalBtc,
         avgPrice,
-        currentValue,
+        finalValueAtEnd,
         profit,
         profitRate,
-        buyCount,
-        skipCount,
+        currentValue,
+        profitByCurrent,
+        profitRateByCurrent,
+        skipCount
     };
 }

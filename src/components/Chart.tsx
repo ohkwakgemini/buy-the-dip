@@ -1,5 +1,5 @@
 /**
- * 차트 컴포넌트 - 픽셀 스타일 & UX 개선
+ * 차트 컴포넌트 - 디자인 개선 및 라벨 위치 수정
  */
 
 import { useEffect, useRef } from 'react';
@@ -30,6 +30,7 @@ export default function Chart({
 
     useEffect(() => {
         if (!chartRef.current) return;
+
         if (!chartInstance.current) {
             chartInstance.current = echarts.init(chartRef.current);
         }
@@ -37,104 +38,159 @@ export default function Chart({
 
         const fngMap = new Map(fngData.map(f => [f.d, f.v]));
         const sortedBtcData = [...btcData].sort((a, b) => a.d.localeCompare(b.d));
+        const dates = sortedBtcData.map(b => b.d);
 
-        // 픽셀 폰트 설정
-        const fontFamily = "'Press Start 2P', cursive";
-        const textColor = '#ffffff';
+        const fontFamily = "'DungGeunMo', monospace";
+        const textColor = '#CFCFCF'; // --text-secondary
+
+        const markLines = [];
+        if (selectedStartDate) {
+            markLines.push({
+                xAxis: selectedStartDate,
+                label: {
+                    formatter: '시작',
+                    position: 'end' as const, // 상단 표시
+                    backgroundColor: '#FFFF33', // 노란색 배경
+                    color: 'black', padding: [4, 6], borderRadius: 0,
+                    fontFamily, distance: [0, -20] // 위치 미세 조정
+                },
+                lineStyle: { color: '#FFFF33', width: 2, type: 'solid' as const } // 노란색 선
+            });
+        }
+        if (selectedEndDate) {
+            markLines.push({
+                xAxis: selectedEndDate,
+                label: {
+                    formatter: '종료',
+                    position: 'end' as const, // 상단 표시
+                    backgroundColor: '#FF3333', // 빨간색 배경
+                    color: 'white', padding: [4, 6], borderRadius: 0,
+                    fontFamily, distance: [0, -20]
+                },
+                lineStyle: { color: '#FF3333', width: 2, type: 'solid' as const } // 빨간색 선
+            });
+        }
 
         const option: echarts.EChartsOption = {
             backgroundColor: 'transparent',
+            animation: false,
             grid: {
-                left: 60,
-                right: 60,
-                top: 40,
+                left: isMobile ? 10 : 60, // 모바일 좌측 여백 축소
+                right: isMobile ? 10 : 60, // 모바일 우측 여백 축소 (화면 가득 채우기)
+                top: 50,
                 bottom: 40,
+                containLabel: !isMobile // 모바일에서는 라벨 포함 여부를 꺼서 최대한 넓게 쓰거나 false로 조정
             },
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'cross', label: { fontFamily } },
-                backgroundColor: '#000000',
-                borderColor: '#ffffff',
-                borderWidth: 2,
-                textStyle: { fontFamily, color: '#ffffff', fontSize: 10 },
+                backgroundColor: 'rgba(20, 20, 20, 0.95)', // --bg-card
+                borderColor: '#333',
+                borderWidth: 1,
+                textStyle: { fontFamily, color: '#FFFFFF', fontSize: 14 },
                 formatter: (params: any) => {
                     const date = params[0].axisValue;
-                    let html = `${date}<br/>`;
+                    let html = `<div style="font-family:'DungGeunMo'; border-bottom:1px solid #333; margin-bottom:8px; padding-bottom:4px; color:#CFCFCF;">${date}</div>`;
                     params.forEach((p: any) => {
-                        const val = p.currency === 'KRW'
-                            ? Math.floor(p.value).toLocaleString() + ' KRW'
+                        const val = p.componentType === 'series' && p.seriesName === '비트코인'
+                            ? Math.floor(p.value).toLocaleString() + '원'
                             : p.value;
-                        html += `${p.marker} ${p.seriesName}: ${val}<br/>`;
+                        let color = p.color;
+                        if (p.seriesName === '공포탐욕') color = '#33FF33';
+                        if (p.seriesName === '비트코인') color = '#FF3399';
+
+                        html += `<div style="font-family:'DungGeunMo'; margin-bottom:4px;">
+                <span style="display:inline-block;margin-right:6px;width:8px;height:8px;background-color:${color};"></span>
+                <span style="color:#CFCFCF;">${p.seriesName}:</span> <span style="color:#FFF; font-weight:bold;">${val}</span>
+             </div>`;
                     });
                     return html;
                 }
             },
             xAxis: {
                 type: 'category',
-                data: sortedBtcData.map(b => b.d),
-                axisLabel: { fontFamily, color: textColor, fontSize: 10 },
-                axisLine: { lineStyle: { color: textColor, width: 2 } }
+                data: dates,
+                axisLabel: { fontFamily, color: textColor, fontSize: 12, margin: 12 },
+                axisLine: { lineStyle: { color: '#333' } }, // 축 색상 은은하게
+                axisTick: { show: false }
             },
             yAxis: [
                 {
                     type: 'value',
-                    name: 'FNG',
                     min: 0,
                     max: 100,
                     position: 'left',
-                    axisLabel: { fontFamily, color: textColor },
-                    axisLine: { lineStyle: { color: '#00ff00', width: 2 } },
-                    splitLine: { show: false }
+                    axisLabel: { fontFamily, color: '#33FF33' }, // 공포탐욕 축 색상
+                    splitLine: { show: true, lineStyle: { color: '#222' } }, // 격자 아주 흐리게
+                    axisLine: { show: false }
                 },
                 {
                     type: 'value',
-                    name: 'BTC',
                     position: 'right',
                     axisLabel: {
                         fontFamily,
-                        color: textColor,
+                        color: '#FF3399', // 비트코인 축 색상
                         formatter: (val: number) => {
                             if (val >= 100000000) return (val / 100000000).toFixed(1) + '억';
+                            if (val >= 10000000) return (val / 10000000).toFixed(val % 10000000 === 0 ? 0 : 1) + '천만'; // 6000만 -> 6천만
                             return (val / 10000).toFixed(0) + '만';
                         }
                     },
-                    axisLine: { lineStyle: { color: '#ff00ff', width: 2 } },
-                    splitLine: { show: false }
+                    splitLine: { show: false },
+                    axisLine: { show: false }
                 }
             ],
             series: [
                 {
-                    name: 'FNG',
+                    name: '공포탐욕',
                     type: 'line',
                     yAxisIndex: 0,
-                    data: sortedBtcData.map(b => {
-                        const v = fngMap.get(b.d);
+                    data: dates.map(d => {
+                        const v = fngMap.get(d);
                         return v !== undefined ? v : null;
                     }),
-                    itemStyle: { color: '#00ff00' }, // Pixel Green
-                    lineStyle: { width: 2, type: 'solid' },
+                    itemStyle: { color: '#33FF33' },
+                    lineStyle: { width: 2 },
                     symbol: 'none',
-                    // Extreme Fear/Greed 표시 복구
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(51, 255, 51, 0.1)' },
+                            { offset: 1, color: 'rgba(51, 255, 51, 0.0)' }
+                        ])
+                    },
                     markArea: {
-                        itemStyle: { opacity: 0.3 },
+                        itemStyle: { opacity: 0.1 },
                         data: [
-                            [
-                                { yAxis: 0 }, { yAxis: 25, itemStyle: { color: '#ff0000' } } // Extreme Fear (Red)
-                            ],
-                            [
-                                { yAxis: 75 }, { yAxis: 100, itemStyle: { color: '#00ff00' } } // Extreme Greed (Green)
-                            ]
+                            [{ yAxis: 0 }, { yAxis: 25, itemStyle: { color: '#FF3333' } }], // 극단적 공포 (Red)
+                            [{ yAxis: 75 }, { yAxis: 100, itemStyle: { color: '#33FF33' } }] // 극단적 탐욕 (Green)
                         ]
-                    }
+                    },
                 },
                 {
-                    name: 'BTC',
+                    name: '비트코인',
                     type: 'line',
                     yAxisIndex: 1,
-                    data: sortedBtcData.map(b => b.c),
-                    itemStyle: { color: '#ff00ff' }, // Magenta
+                    data: dates.map(d => {
+                        const item = btcData.find(b => b.d === d);
+                        return item ? item.c : null;
+                    }),
+                    itemStyle: { color: '#FF3399' },
                     lineStyle: { width: 2 },
-                    symbol: 'none'
+                    symbol: 'none',
+                    markLine: {
+                        data: markLines,
+                        symbol: 'none',
+                        silent: true,
+                        label: {
+                            formatter: '{b}',
+                            fontFamily
+                        },
+                        lineStyle: {
+                            type: 'solid' as const,
+                            width: 2
+                        },
+                        animation: false
+                    }
                 }
             ],
             dataZoom: [
@@ -143,82 +199,76 @@ export default function Chart({
                     type: 'slider',
                     height: 20,
                     bottom: 0,
-                    borderColor: '#ffffff',
-                    fillerColor: 'rgba(255, 255, 255, 0.2)',
-                    textStyle: { fontFamily, color: '#ffffff', fontSize: 10 }
+                    borderColor: 'transparent',
+                    backgroundColor: '#111',
+                    fillerColor: 'rgba(255, 255, 255, 0.1)',
+                    textStyle: { fontFamily, color: '#888', fontSize: 10 },
+                    handleStyle: { color: '#555' },
+                    moveHandleStyle: { color: '#555' },
+                    selectedDataBackground: {
+                        lineStyle: { color: '#555' },
+                        areaStyle: { color: '#333' }
+                    }
                 }
             ]
         };
 
-        // 선택된 날짜 마커 (세로선)
-        const markLines = [];
-        if (selectedStartDate) {
-            markLines.push({
-                xAxis: selectedStartDate,
-                label: {
-                    formatter: 'START', position: 'start',
-                    backgroundColor: '#00ff00', color: 'black', padding: 4, borderRadius: 0
-                },
-                lineStyle: { color: '#00ff00', width: 3, type: 'solid' }
-            });
-        }
-        if (selectedEndDate) {
-            markLines.push({
-                xAxis: selectedEndDate,
-                label: {
-                    formatter: 'END', position: 'end',
-                    backgroundColor: '#ff0000', color: 'white', padding: 4, borderRadius: 0
-                },
-                lineStyle: { color: '#ff0000', width: 3, type: 'solid' }
-            });
-        }
+        chart.setOption(option, { notMerge: true });
 
-        if (option.series && Array.isArray(option.series)) {
-            // BTC 시리즈에 마크라인 추가
-            (option.series[1] as any).markLine = {
-                data: markLines,
-                symbol: 'none',
-                silent: true
-            };
-        }
-
-        chart.setOption(option);
-
-        // 클릭 이벤트
-        chart.off('click');
-        chart.on('click', (params: any) => {
-            if (selectionMode) {
-                onDateSelect(params.name); // 날짜 전달
+        // 좌표 변환 클릭 로직 유지
+        const zr = chart.getZr();
+        zr.off('click');
+        zr.on('click', (params: any) => {
+            if (!selectionMode) return;
+            const pointInPixel = [params.offsetX, params.offsetY];
+            if (chart.containPixel('grid', pointInPixel)) {
+                const xIndex = chart.convertFromPixel({ seriesIndex: 0 }, pointInPixel)[0];
+                if (xIndex >= 0 && xIndex < dates.length) {
+                    onDateSelect(dates[xIndex]);
+                }
             }
         });
 
-        // 커서 스타일 변경
-        chart.getZr().setCursorStyle(selectionMode ? 'crosshair' : 'default');
-
         const handleResize = () => chart.resize();
         window.addEventListener('resize', handleResize);
+        if (chartRef.current) {
+            chartRef.current.style.cursor = selectionMode ? 'crosshair' : 'default';
+        }
+
         return () => {
             window.removeEventListener('resize', handleResize);
             chart.dispose();
+            chartInstance.current = null;
         }
-    }, [btcData, fngData, selectionMode, selectedStartDate, selectedEndDate, isMobile]); // 의존성 배열
+    }, [btcData, fngData, selectionMode, selectedStartDate, selectedEndDate, isMobile]);
 
     return (
         <div style={{ position: 'relative' }}>
             {selectionMode && (
                 <div style={{
-                    position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: 'var(--pixel-accent)', color: 'black', padding: '5px 10px',
-                    zIndex: 10, fontFamily: "'Press Start 2P', cursive", fontSize: '10px',
-                    border: '2px solid white'
+                    position: 'absolute', top: 15, left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: selectionMode === 'start' ? '#FFFF33' : '#FF3333',
+                    color: selectionMode === 'start' ? 'black' : 'white',
+                    padding: '8px 16px',
+                    zIndex: 20, fontFamily: "'DungGeunMo', monospace", fontSize: '14px',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                    animation: 'blink 1.5s infinite ease-in-out',
+                    pointerEvents: 'none'
                 }}>
-                    {selectionMode === 'start' ? 'SELECT START DATE' : 'SELECT END DATE'}
+                    {selectionMode === 'start' ? '▼ 시작일을 선택하세요' : '▼ 종료일을 선택하세요'}
                 </div>
             )}
             <div
                 ref={chartRef}
-                style={{ width: '100%', height: '400px', cursor: selectionMode ? 'crosshair' : 'default' }}
+                style={{ width: '100%', height: isMobile ? '250px' : '500px' }} // 모바일 250px, PC 500px
             />
+            <style>{`
+        @keyframes blink {
+          0% { opacity: 1; transform: translateX(-50%) scale(1); }
+          50% { opacity: 0.8; transform: translateX(-50%) scale(0.98); }
+          100% { opacity: 1; transform: translateX(-50%) scale(1); }
+        }
+      `}</style>
         </div>
     );
 }

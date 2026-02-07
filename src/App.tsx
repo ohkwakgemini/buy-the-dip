@@ -1,5 +1,5 @@
 /**
- * 메인 App 컴포넌트 - 픽셀 아트 버전
+ * 메인 App 컴포넌트 - 픽셀 아트 버전 (폰트 및 레이아웃 수정)
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,7 +18,6 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // 날짜 선택 상태: 'start' | 'end' | null (null은 선택 모드 아님)
   const [selectionMode, setSelectionMode] = useState<'start' | 'end' | null>(null);
   const [selectedStartDate, setSelectedStartDate] = useState<string | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
@@ -27,7 +26,6 @@ function App() {
   const [simResult, setSimResult] = useState<SimResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // ... (데이터 로드 로직 동일)
   useEffect(() => {
     loadAllData()
       .then((data) => {
@@ -36,12 +34,11 @@ function App() {
       })
       .catch((err) => {
         console.error('Failed to load data:', err);
-        setError('DATA LOAD FAIL');
+        setError('데이터 로드 실패');
         setLoading(false);
       });
   }, []);
 
-  // ... (웹소켓 로직 동일)
   const handlePriceUpdate = useCallback((price: number) => {
     if (!dataStore) return;
     const today = getTodayKST();
@@ -59,26 +56,22 @@ function App() {
 
   const wsState = useUpbitWebSocket(handlePriceUpdate);
 
-  // 반응형
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // 시뮬레이션 실행 (자동)
   useEffect(() => {
-    // 시작일이 없으면 계산 안함
     if (!dataStore || !selectedStartDate || !controlsState) {
       setSimResult(null);
       return;
     }
 
-    // 종료일이 없으면 "오늘"로 설정하여 시뮬레이션
     const effectiveEndDate = selectedEndDate || getTodayKST();
 
     if (selectedStartDate > effectiveEndDate) {
-      setSimResult(null); // 시작일이 종료일보다 미래면 결과 없음
+      // 시작일이 더 미래인 경우 메시지만 띄우고 결과 계산 안함
       return;
     }
 
@@ -103,14 +96,10 @@ function App() {
     setIsCalculating(false);
   }, [dataStore, selectedStartDate, selectedEndDate, controlsState, wsState.lastPrice]);
 
-  // 차트 클릭 핸들러
   const handleChartClick = (date: string) => {
     if (selectionMode === 'start') {
       setSelectedStartDate(date);
-      setSelectionMode(null); // 선택 완료 후 모드 해제
-      // 시작일을 찍으면 종료일은 초기화 (다시 찍게 하거나, 현재까지로 리셋)
-      // 사용성을 위해 종료일은 일단 유지하거나 리셋? 
-      // 요청: "종료칸은 별도설정이 없으면 현재날짜까지 산다는거야" -> 리셋이 맞음
+      setSelectionMode(null);
       setSelectedEndDate(null);
     } else if (selectionMode === 'end') {
       if (selectedStartDate && date < selectedStartDate) {
@@ -122,8 +111,17 @@ function App() {
     }
   };
 
-  if (loading) return <div style={{ padding: 50, textAlign: 'center' }}>LOADING...</div>;
-  if (error || !dataStore) return <div style={{ padding: 50, textAlign: 'center', color: 'red' }}>ERROR</div>;
+  if (loading) return (
+    <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div className="nes-container is-rounded">로딩중...</div>
+    </div>
+  );
+
+  if (error || !dataStore) return (
+    <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div className="nes-container is-rounded is-dark" style={{ color: 'red' }}>에러 발생</div>
+    </div>
+  );
 
   const { btcArray, fngArray, fngMap, meta } = dataStore;
   const today = getTodayKST();
@@ -131,61 +129,26 @@ function App() {
   const currentBtcPrice = wsState.lastPrice || btcArray[btcArray.length - 1]?.c || 0;
 
   return (
-    <div className="app" style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <div className="app" style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '10px' : '20px', minHeight: '100vh', fontFamily: "'DungGeunMo', monospace" }}>
 
-      {/* 헤더 */}
-      <h1 className="pixel-title">
-        BUY THE DIP<br />
-        <span style={{ fontSize: '14px', color: 'var(--pixel-accent)' }}>CRYPTOCURRENCY DCA SIMULATOR</span>
+      <h1 className="pixel-title" style={{ fontSize: isMobile ? '24px' : '32px', marginBottom: isMobile ? '20px' : '40px' }}>
+        공포에 사라<br />
+        <span style={{ fontSize: isMobile ? '12px' : '14px', color: 'var(--pixel-accent)', marginTop: '8px', display: 'block' }}>
+          비트코인 적립식 매수(DCA) 시뮬레이터
+        </span>
       </h1>
 
-      {/* 대시보드 */}
       <StatsCards
         fngValue={currentFng?.v || 0}
         fngStatus={currentFng?.s || '-'}
         btcPrice={currentBtcPrice}
         wsState={wsState}
+        isMobile={isMobile}
       />
 
-      <div style={{ height: '20px' }} />
+      <div style={{ height: isMobile ? '12px' : '24px' }} />
 
-      {/* 날짜 선택 컨트롤 패널 (차트 위로 이동하여 명확하게) */}
-      <div className="nes-container">
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
-
-          {/* 시작일 선택 */}
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ marginBottom: '10px' }}>START DATE</p>
-            <button
-              className={`nes-btn ${selectionMode === 'start' ? 'is-primary' : ''}`}
-              style={{ width: '100%' }}
-              onClick={() => setSelectionMode(selectionMode === 'start' ? null : 'start')}
-            >
-              {selectedStartDate || "CLICK TO SELECT"}
-            </button>
-            {selectionMode === 'start' && <p style={{ fontSize: '10px', color: 'var(--pixel-accent)', marginTop: '5px' }}>▲ CLICK ON CHART</p>}
-          </div>
-
-          {/* 종료일 선택 */}
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ marginBottom: '10px' }}>END DATE</p>
-            <button
-              className={`nes-btn ${selectionMode === 'end' ? 'is-primary' : ''}`}
-              style={{ width: '100%' }}
-              onClick={() => setSelectionMode(selectionMode === 'end' ? null : 'end')}
-            >
-              {selectedEndDate || "TODAY (CURRENT)"}
-            </button>
-            {selectionMode === 'end' && <p style={{ fontSize: '10px', color: 'var(--pixel-accent)', marginTop: '5px' }}>▲ CLICK ON CHART</p>}
-          </div>
-
-        </div>
-      </div>
-
-      <div style={{ height: '20px' }} />
-
-      {/* 차트 */}
-      <div className="nes-container" style={{ padding: '10px' }}>
+      <div className="nes-container" style={{ padding: '4px', background: '#000' }}>
         <Chart
           btcData={btcArray}
           fngData={fngArray}
@@ -197,22 +160,80 @@ function App() {
         />
       </div>
 
-      <div style={{ height: '20px' }} />
+      <div style={{ height: isMobile ? '10px' : '20px' }} />
 
-      {/* DCA 설정 */}
-      <Controls onChange={setControlsState} />
+      {/* 날짜 선택 컨트롤 패널 */}
+      <div className="nes-container" style={{ background: 'var(--pixel-card)', padding: isMobile ? '10px' : '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '12px' : '24px' }}>
 
-      <div style={{ height: '20px' }} />
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ marginBottom: isMobile ? '6px' : '12px', fontSize: isMobile ? '16px' : '20px', color: '#00ff00' }}>① 매수 시작일</p>
+            <button
+              className={`nes-btn ${selectionMode === 'start' ? 'is-primary' : ''}`}
+              style={{ width: '100%', fontSize: isMobile ? '18px' : '24px' }}
+              onClick={() => setSelectionMode(selectionMode === 'start' ? null : 'start')}
+            >
+              {selectedStartDate || "선택하기 (클릭)"}
+            </button>
+            {selectionMode === 'start' && <p style={{ fontSize: '14px', color: 'var(--pixel-accent)', marginTop: '8px' }}>▲ 차트 위 날짜를 클릭하세요</p>}
+          </div>
 
-      {/* 광고 */}
-      <AdUnit slot="12345" />
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ marginBottom: isMobile ? '6px' : '12px', fontSize: isMobile ? '16px' : '20px', color: '#ff0000' }}>② 매수 종료일</p>
+            <button
+              className={`nes-btn ${selectionMode === 'end' ? 'is-primary' : ''}`}
+              style={{ width: '100%', fontSize: isMobile ? '18px' : '24px' }}
+              onClick={() => setSelectionMode(selectionMode === 'end' ? null : 'end')}
+            >
+              {selectedEndDate || "오늘까지 (기본)"}
+            </button>
+            {selectionMode === 'end' && <p style={{ fontSize: '14px', color: 'var(--pixel-accent)', marginTop: '8px' }}>▲ 차트 위 날짜를 클릭하세요</p>}
+          </div>
 
-      {/* 시뮬레이션 결과 */}
-      <SimResultComp result={simResult} isCalculating={isCalculating} />
+        </div>
+      </div>
 
-      <footer style={{ marginTop: '50px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
-        <p>DATA UPDATED: {meta.u.split('T')[0]}</p>
-        <p>© 2026 PROJECT BUY-THE-DIP</p>
+      <div style={{ height: isMobile ? '12px' : '24px' }} />
+
+      {/* 2026-02-06 UI 수정: Controls 폰트 확대 (isMobile 전달) */}
+      <Controls onChange={setControlsState} isMobile={isMobile} />
+
+      <div style={{ height: isMobile ? '12px' : '24px' }} />
+
+      {/* 광고 배치 로직 변경 */}
+      {isMobile ? (
+        /* 모바일: 하단 광고 */
+        <div style={{ marginBottom: '20px' }}>
+          <AdUnit slot="MOBILE_BOTTOM_12345" />
+        </div>
+      ) : (
+        /* PC: 좌우 사이드 광고 (화면 너비가 충분할 때만 표시됨) */
+        <>
+          {/* 왼쪽 배너 */}
+          <div style={{
+            position: 'fixed', left: '20px', top: '50%', transform: 'translateY(-50%)',
+            width: '160px', height: '600px', zIndex: 10
+          }}>
+            <div style={{ color: '#666', fontSize: '10px', marginBottom: '5px', textAlign: 'center' }}>광고</div>
+            <AdUnit slot="PC_LEFT_12345" />
+          </div>
+
+          {/* 오른쪽 배너 */}
+          <div style={{
+            position: 'fixed', right: '20px', top: '50%', transform: 'translateY(-50%)',
+            width: '160px', height: '600px', zIndex: 10
+          }}>
+            <div style={{ color: '#666', fontSize: '10px', marginBottom: '5px', textAlign: 'center' }}>광고</div>
+            <AdUnit slot="PC_RIGHT_12345" />
+          </div>
+        </>
+      )}
+
+      <SimResultComp result={simResult} isCalculating={isCalculating} isMobile={isMobile} />
+
+      <footer style={{ marginTop: '60px', textAlign: 'center', fontSize: '14px', color: '#666', borderTop: '4px solid #333', paddingTop: '20px' }}>
+        <p>데이터 업데이트: {meta.u.split('T')[0]}</p>
+        <p style={{ marginTop: '8px' }}>© 2026 공포에 사라 (Buy the Dip)</p>
       </footer>
     </div>
   );

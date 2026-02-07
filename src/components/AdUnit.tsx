@@ -12,7 +12,7 @@ interface AdUnitProps {
 }
 
 // 환경변수 또는 상수로 관리
-const ADSENSE_CLIENT = import.meta.env.VITE_ADSENSE_CLIENT || 'ca-pub-0000000000000000';
+const ADSENSE_CLIENT = import.meta.env.VITE_ADSENSE_CLIENT || 'ca-pub-3155703391875184';
 
 export default function AdUnit({
     slot,

@@ -114,9 +114,17 @@ export function useUpbitWebSocket(
         error: null,
     });
 
+    // 콜백을 ref에 저장하여 useEffect 의존성 제거
+    const savedCallback = React.useRef(onPriceUpdate);
+    React.useEffect(() => {
+        savedCallback.current = onPriceUpdate;
+    }, [onPriceUpdate]);
+
     React.useEffect(() => {
         const ws = new UpbitWebSocket((price) => {
-            onPriceUpdate(price);
+            if (savedCallback.current) {
+                savedCallback.current(price);
+            }
             setState(ws.getState());
         });
 
@@ -128,7 +136,7 @@ export function useUpbitWebSocket(
             ws.disconnect();
             clearInterval(interval);
         };
-    }, [onPriceUpdate]);
+    }, []); // 의존성 빈 배열로 고정 -> 마운트 시 한 번만 실행
 
     return state;
 }

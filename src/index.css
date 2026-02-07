@@ -1,38 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-:root {
-  /* 픽셀 테마 색상 */
-  --pixel-bg: #000000;
-  --pixel-card: #222222;
-  --pixel-text: #ffffff;
-  --pixel-accent: #00ff00;
-  /* 터미널 그린 */
-  --pixel-alert: #ff0000;
-  --pixel-warning: #ffff00;
-  --pixel-dim: #888888;
-  --pixel-border: #ffffff;
-
-  --bg-primary: var(--pixel-bg);
-  --bg-secondary: #111111;
-  --bg-card: var(--pixel-card);
-  --text-primary: var(--pixel-text);
-  --text-secondary: var(--pixel-dim);
-  --border-color: var(--pixel-border);
-
-  --color-fear: #ff4d4d;
-  --color-greed: #00e600;
+@font-face {
+  font-family: 'DungGeunMo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
 }
 
-[data-theme="light"] {
-  --pixel-bg: #f0f0f0;
-  --pixel-card: #ffffff;
-  --pixel-text: #000000;
-  --pixel-border: #000000;
-  --bg-primary: #e0e0e0;
-  --bg-secondary: #d0d0d0;
-  --bg-card: #ffffff;
-  --text-primary: #000000;
-  --text-secondary: #555555;
+:root {
+  /* 
+    디자인 시스템 리뉴얼 
+    - 배경: 완전 블랙 -> 다크 그레이 계층화
+    - 포인트: 형광색 절제 및 역할 부여
+  */
+
+  /* 배경색 계층 */
+  --bg-app: #0B0B0B;
+  /* 전체 앱 배경 */
+  --bg-card: #141414;
+  /* 기본 카드 배경 */
+  --bg-card-highlight: #1A1A1A;
+  /* 강조/활성 카드 배경 */
+
+  /* 텍스트 색상 계층 */
+  --text-primary: #FFFFFF;
+  /* 강조, 제목 (White) */
+  --text-secondary: #CFCFCF;
+  /* 본문, 설명 (Light Gray) */
+  --text-tertiary: #888888;
+  /* 부가 정보 (Dark Gray) */
+
+  /* 포인트 컬러 (결론 및 강조용) */
+  --color-accent-green: #33FF33;
+  /* 수익, 상승, 긍정 (Lime Green) */
+  --color-accent-pink: #FF3399;
+  /* 하락, 비트코인 (Hot Pink) */
+  --color-accent-yellow: #FFFF33;
+  /* 주의, 강조 (Yellow) */
+  --color-danger: #FF3333;
+  /* 경고, 손실 */
+
+  /* 테두리 및 그림자 */
+  --border-light: rgba(255, 255, 255, 0.15);
+  --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -42,71 +50,116 @@
 }
 
 body {
-  font-family: 'Press Start 2P', cursive;
-  /* 픽셀 폰트 */
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: 'DungGeunMo', monospace;
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  /* 기본 텍스트는 회색톤 */
   line-height: 1.5;
 }
 
-/* 픽셀 스타일 스크롤바 */
+/* 스크롤바 */
 ::-webkit-scrollbar {
-  width: 12px;
-  background: var(--bg-secondary);
+  width: 10px;
+  background: var(--bg-app);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--pixel-accent);
-  border: 2px solid var(--pixel-border);
+  background: #333;
+  border-radius: 5px;
 }
 
-/* 픽셀 카드 스타일 유틸리티 */
+/* NES 스타일 재해석 (부드러운 카드 스타일) */
 .nes-container {
-  border: 4px solid var(--text-primary);
-  padding: 20px;
-  margin-bottom: 20px;
   background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  /* 흰색 테두리 제거 후 은은하게 */
+  /* border-radius: 8px; */
+  /* 픽셀 느낌 유지를 위해 라운드 제거 혹은 유지? 사용자는 픽셀 감성 원함 -> 각진 형태 유지하되 테두리만 약하게 */
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
   position: relative;
 }
 
+/* 버튼 스타일 리뉴얼 */
 .nes-btn {
-  border: 4px solid var(--text-primary);
-  padding: 10px 20px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: var(--bg-card-highlight);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  padding: 12px 20px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
-  text-transform: uppercase;
   display: inline-block;
-  box-shadow: 4px 4px 0px var(--text-primary);
+  transition: all 0.2s;
+  box-shadow: 2px 2px 0px #000;
+}
+
+.nes-btn:hover {
+  background: var(--bg-card-highlight);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .nes-btn:active {
-  transform: translate(4px, 4px);
+  transform: translate(2px, 2px);
   box-shadow: none;
 }
 
 .nes-btn.is-primary {
-  background: var(--pixel-accent);
-  color: black;
+  background: var(--color-accent-green);
+  color: #000;
+  /* 가독성 위해 검정 텍스트 */
+  border-color: var(--color-accent-green);
+  font-weight: bold;
 }
 
+/* 입력창 스타일 */
 .nes-input {
-  border: 4px solid var(--text-primary);
-  padding: 10px;
-  width: 100%;
-  font-family: inherit;
-  background: var(--bg-card);
+  background: var(--bg-app);
+  border: 1px solid var(--border-light);
   color: var(--text-primary);
+  padding: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  width: 100%;
   outline: none;
 }
 
+.nes-input:focus {
+  border-color: var(--color-accent-green);
+}
+
+/* 타이포그래피 계층 */
 .pixel-title {
   text-align: center;
-  text-transform: uppercase;
-  border-bottom: 4px solid var(--text-primary);
-  padding-bottom: 15px;
-  margin-bottom: 30px;
-  line-height: 1.4;
+  color: var(--text-primary);
+  font-size: 28px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+}
+
+.pixel-subtitle {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+
+/* 유틸리티 */
+.text-accent {
+  color: var(--color-accent-green);
+}
+
+.text-danger {
+  color: var(--color-danger);
+}
+
+.text-warning {
+  color: var(--color-accent-yellow);
+}
+
+.text-btc {
+  color: var(--color-accent-pink);
 }
