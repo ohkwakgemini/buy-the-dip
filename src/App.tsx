@@ -232,9 +232,38 @@ function App() {
 
       <SimResultComp result={simResult} isCalculating={isCalculating} isMobile={isMobile} />
 
-      <footer style={{ marginTop: '60px', textAlign: 'center', fontSize: '14px', color: '#666', borderTop: '4px solid #333', paddingTop: '20px' }}>
-        <p>데이터 업데이트: {meta.u.split('T')[0]}</p>
-        <p style={{ marginTop: '8px' }}>© 2026 공포에 사라 (Buy the Dip)</p>
+      <footer style={{ marginTop: '60px', textAlign: 'center', fontSize: isMobile ? '12px' : '14px', color: '#888', borderTop: '4px solid #333', paddingTop: '24px', paddingBottom: '40px' }}>
+
+        {/* 데이터 출처 */}
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ color: '#aaa', fontWeight: 'bold', marginBottom: '8px' }}>📊 데이터 출처</p>
+          <p>비트코인(BTC) 가격: <a href="https://upbit.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--pixel-accent, #00ff00)' }}>업비트(Upbit)</a> KRW 마켓 기준</p>
+          <p style={{ marginTop: '4px' }}>공포·탐욕 지수(Fear & Greed Index): <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--pixel-accent, #00ff00)' }}>alternative.me</a></p>
+        </div>
+
+        {/* 업데이트 정보 */}
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ color: '#aaa', fontWeight: 'bold', marginBottom: '8px' }}>🔄 데이터 갱신</p>
+          <p>과거 데이터는 매일 자동 업데이트됩니다 (UTC 00:00 / KST 09:00)</p>
+          <p style={{ marginTop: '4px' }}>실시간 가격은 업비트 WebSocket을 통해 갱신됩니다</p>
+          <p style={{ marginTop: '4px', fontSize: isMobile ? '11px' : '12px', color: '#666' }}>마지막 데이터 업데이트: {meta.u.split('T')[0]}</p>
+        </div>
+
+        {/* 면책 조항 */}
+        <div style={{ marginBottom: '20px', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid #333' }}>
+          <p style={{ color: '#ff6b6b', fontWeight: 'bold', marginBottom: '8px' }}>⚠️ 면책 조항</p>
+          <p>본 사이트는 과거 데이터 기반의 시뮬레이션 도구이며, 투자 조언이나 권유가 아닙니다.</p>
+          <p style={{ marginTop: '4px' }}>시뮬레이션 결과는 실제 투자 수익을 보장하지 않습니다.</p>
+          <p style={{ marginTop: '4px' }}>모든 투자의 책임은 투자자 본인에게 있습니다.</p>
+        </div>
+
+        {/* 사이트 정보 */}
+        <div>
+          <p style={{ marginTop: '12px' }}>© 2026 공포에 사라 (Buy the Dip)</p>
+          <p style={{ marginTop: '4px', fontSize: isMobile ? '10px' : '11px', color: '#555' }}>
+            buythefear.vercel.app
+          </p>
+        </div>
       </footer>
     </div>
   );
