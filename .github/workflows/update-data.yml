@@ -4,6 +4,16 @@ on:
   schedule:
     # 매일 0시 UTC (한국 시간 오전 9시)
     - cron: '0 0 * * *'
+  workflow_dispatch: # 수동 실행 가능하도록 추가
+
+permissions:
+  contents: write
+  workflow_dispatch:
+    # 수동 실행 가능
+
+# 저장소 쓰기 권한 필수
+permissions:
+  contents: write
 
 jobs:
   update:
@@ -12,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
